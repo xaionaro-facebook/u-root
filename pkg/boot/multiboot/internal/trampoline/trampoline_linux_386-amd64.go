@@ -6,6 +6,9 @@
 // spec and jumps to the intended kernel.
 //
 // https://www.gnu.org/software/grub/manual/multiboot/multiboot.html#Machine-state.
+
+// +build linux,amd64 linux,386
+
 package trampoline
 
 import (

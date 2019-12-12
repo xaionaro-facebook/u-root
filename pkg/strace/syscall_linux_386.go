@@ -20,11 +20,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const Width = 64
+const Width = 32
 
 var ByteOrder = binary.LittleEndian
 
-// This is the amd64 syscall map. One might think that this one map could be used for all Linux
+// This is the 386 syscall map. One might think that this one map could be used for all Linux
 // flavors on all architectures. Ah, no. It's Linux, not Plan 9. Every arch has a different
 // system call set.
 var syscalls = SyscallMap{
@@ -71,7 +71,7 @@ var syscalls = SyscallMap{
 	unix.SYS_SENDFILE:               makeSyscallInfo("sendfile", Hex, Hex, Hex, Hex),
 	unix.SYS_SOCKET:                 makeSyscallInfo("socket", SockFamily, SockType, SockProtocol),
 	unix.SYS_CONNECT:                makeSyscallInfo("connect", Hex, SockAddr, Hex),
-	unix.SYS_ACCEPT:                 makeSyscallInfo("accept", Hex, PostSockAddr, SockLen),
+	// unix.SYS_ACCEPT:                 makeSyscallInfo("accept", Hex, PostSockAddr, SockLen), // not defined in golang.org/x/sys/unix
 	unix.SYS_SENDTO:                 makeSyscallInfo("sendto", Hex, Hex, Hex, Hex, SockAddr, Hex),
 	unix.SYS_RECVFROM:               makeSyscallInfo("recvfrom", Hex, Hex, Hex, Hex, PostSockAddr, SockLen),
 	unix.SYS_SENDMSG:                makeSyscallInfo("sendmsg", Hex, SendMsgHdr, Hex),
@@ -93,7 +93,7 @@ var syscalls = SyscallMap{
 	unix.SYS_KILL:                   makeSyscallInfo("kill", Hex, Hex),
 	unix.SYS_UNAME:                  makeSyscallInfo("uname", Uname),
 	unix.SYS_SEMGET:                 makeSyscallInfo("semget", Hex, Hex, Hex),
-	unix.SYS_SEMOP:                  makeSyscallInfo("semop", Hex, Hex, Hex),
+	// unix.SYS_SEMOP:                  makeSyscallInfo("semop", Hex, Hex, Hex), // not defined in golang.org/x/sys/unix
 	unix.SYS_SEMCTL:                 makeSyscallInfo("semctl", Hex, Hex, Hex, Hex),
 	unix.SYS_SHMDT:                  makeSyscallInfo("shmdt", Hex),
 	unix.SYS_MSGGET:                 makeSyscallInfo("msgget", Hex, Hex),
@@ -248,7 +248,7 @@ var syscalls = SyscallMap{
 	unix.SYS_GETDENTS64:       makeSyscallInfo("getdents64", Hex, Hex, Hex),
 	unix.SYS_SET_TID_ADDRESS:  makeSyscallInfo("set_tid_address", Hex),
 	unix.SYS_RESTART_SYSCALL:  makeSyscallInfo("restart_syscall"),
-	unix.SYS_SEMTIMEDOP:       makeSyscallInfo("semtimedop", Hex, Hex, Hex, Hex),
+	// unix.SYS_SEMTIMEDOP:       makeSyscallInfo("semtimedop", Hex, Hex, Hex, Hex), // not defined in golang.org/x/sys/unix
 	unix.SYS_FADVISE64:        makeSyscallInfo("fadvise64", Hex, Hex, Hex, Hex),
 	unix.SYS_TIMER_CREATE:     makeSyscallInfo("timer_create", Hex, Hex, Hex),
 	unix.SYS_TIMER_SETTIME:    makeSyscallInfo("timer_settime", Hex, Hex, ItimerSpec, PostItimerSpec),
@@ -290,7 +290,7 @@ var syscalls = SyscallMap{
 	unix.SYS_MKNODAT:           makeSyscallInfo("mknodat", Hex, Path, Mode, Hex),
 	unix.SYS_FCHOWNAT:          makeSyscallInfo("fchownat", Hex, Path, Hex, Hex, Hex),
 	unix.SYS_FUTIMESAT:         makeSyscallInfo("futimesat", Hex, Path, Hex),
-	unix.SYS_NEWFSTATAT:        makeSyscallInfo("newfstatat", Hex, Path, Stat, Hex),
+	// unix.SYS_NEWFSTATAT:        makeSyscallInfo("newfstatat", Hex, Path, Stat, Hex),  // not defined in golang.org/x/sys/unix
 	unix.SYS_UNLINKAT:          makeSyscallInfo("unlinkat", Hex, Path, Hex),
 	unix.SYS_RENAMEAT:          makeSyscallInfo("renameat", Hex, Path, Hex, Path),
 	unix.SYS_LINKAT:            makeSyscallInfo("linkat", Hex, Path, Hex, Path, Hex),
@@ -359,17 +359,17 @@ var syscalls = SyscallMap{
 func (rec *TraceRecord) FillArgs() {
 	r := rec.Regs
 	rec.Args = SyscallArguments{
-		{uintptr(r.Rdi)},
-		{uintptr(r.Rsi)},
-		{uintptr(r.Rdx)},
-		{uintptr(r.R10)},
-		{uintptr(r.R8)},
-		{uintptr(r.R9)}}
-	rec.Sysno = int(uint32(r.Orig_rax))
+		{uintptr(r.Ebx)},
+		{uintptr(r.Ecx)},
+		{uintptr(r.Edx)},
+		{uintptr(r.Esi)},
+		{uintptr(r.Edi)},
+		{uintptr(r.Ebp)}}
+	rec.Sysno = int(uint32(r.Orig_eax))
 }
 
 // FillRet fills the TraceRecord with the result values from the registers.
 func (rec *TraceRecord) FillRet() {
 	r := rec.Regs
-	rec.Ret = [2]SyscallArgument{{uintptr(r.Rax)}, {uintptr(r.Rdx)}}
+	rec.Ret = [2]SyscallArgument{{uintptr(r.Eax)}, {uintptr(r.Edx)}}
 }

@@ -6,6 +6,8 @@
 // in a contiguous byte range in a compiled binary.
 // Go compiler does not guarantee that. Still, current version
 // of compiler puts all pieces together.
+//
+// This code is adapted version of "trampoline_linux_amd64.s"
 
 #include "textflag.h"
 
@@ -18,12 +20,14 @@
 
 #define MAGIC	0x2BADB002
 
+// See https://www.gnu.org/software/grub/manual/multiboot/multiboot.html#Machine-state
+
 TEXT ·start(SB),NOSPLIT,$0
 	// Create GDT pointer on stack.
-	LEAQ	gdt(SB), CX
-	SHLQ	$16, CX
-	ORQ	$(4*8 - 1), CX
-	PUSHQ	CX
+	LEAL	gdt(SB), CX
+	SHLL	$16, CX
+	ORL	$(4*8 - 1), CX
+	PUSHL	CX
 
 	LGDT	(SP)
 
@@ -31,42 +35,16 @@ TEXT ·start(SB),NOSPLIT,$0
 	// Don't modify BX.
 	MOVL	info(SB), BX
 
-	// Far return doesn't work on QEMU in 64-bit mode,
-	// let's do far jump.
-	//
-	// In a regular plan9 assembly we can do something like:
-	//	BYTE	$0xFF; BYTE $0x2D
-	//	LONG	$bootaddr(SB)
-	// TEXT bootaddr(SB),NOSPLIT,$0
-	//	LONG	$boot(SB)
-	//	LONG	$0x8
-	//
-	// Go compiler doesn't let us do it.
-	//
-	// Setup offset to make a far jump from boot(SB)
-	// to a final kernel in a 32-bit mode.
-	MOVL	entry(SB), AX
-	MOVL	AX, farjump32+1(SB)
-
-	// Setup offset to make a far jump to boot(SB)
-	// to switch from 64-bit mode to 32-bit mode.
-	LEAQ	boot(SB), CX
-	MOVL	CX, farjump64+6(SB)
-	JMP	farjump64(SB)
-
+	JMP	boot(SB)
 
 TEXT boot(SB),NOSPLIT,$0
-	// We are in 32-bit mode now.
-	//
-	// Be careful editing this code!!! Go compiler
-	// interprets all commands as 64-bit commands.
-
 	// Disable paging.
 	MOVL	CR0, AX
 	ANDL	$CR0_PG, AX
 	MOVL	AX, CR0
 
 	// Disable long mode.
+	// TODO: do we still need this if we already use 386 architecture here?
 	MOVL	$MSR_EFER, CX
 	RDMSR
 	ANDL	$EFER_LME, AX
@@ -86,7 +64,7 @@ TEXT boot(SB),NOSPLIT,$0
 	BYTE	$0x8e; BYTE $0xe8 // MOVL AX, GS
 
 	MOVL	$MAGIC, AX
-	JMP	farjump32(SB)
+	JMP	entry(SB)
 
 	// Unreachable code.
 	// Need reference text labels for compiler to
@@ -94,18 +72,6 @@ TEXT boot(SB),NOSPLIT,$0
 	JMP	infotext(SB)
 	JMP	entrytext(SB)
 
-TEXT farjump64(SB),NOSPLIT,$0
-	// See: http://www.scs.stanford.edu/05au-cs240c/lab/amd64/AMD64-3.pdf
-	BYTE	$0xFF; BYTE $0x2D; LONG $0x0 // ljmp *(ip)
-
-	LONG	$0x0 // farjump64+6(SB), this value is replaced while execution of start(SB)
-	LONG	$0x8 // code segment
-
-TEXT farjump32(SB),NOSPLIT,$0
-	// ljmp $0x18, offset
-	BYTE	$0xEA
-	LONG	$0x0 // farjump32+1(SB), this value is replaced while execution of start(SB)
-	WORD	$0x18 // code segment
 
 TEXT gdt(SB),NOSPLIT,$0
 	QUAD	$0x0		// 0x0 null entry
